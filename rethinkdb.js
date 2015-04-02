@@ -1,8 +1,9 @@
 var rethinkdbdash = require('rethinkdbdash');
-var q = require('q');
+var q = require('q'); // Can be easily removed
 var assert = require('assert');
 var async = require('async');
 var utils = require('./lib/utils');
+var convertToReQLQuery = require('./lib/convert-to-reql-query');
 
 /* There are two ways to instantiate a livedb-rethinkdb wrapper.
  *
@@ -320,11 +321,18 @@ liveDBRethinkDB.prototype._query = function(r, cName, query, fields, callback) {
     // Weirdly, if the requested projection is empty, we send everything.
     var projection = fields ? projectionFromFields(fields) : {};
 
-    r
-      .table(cName)
-      .filter(query) // This won't work
+    var query = convertToReQLQuery(
+      r.table(cName),
+      query
+    );
 
+    if (projection) query = query.pluck(projection);
 
+    query.run().then(function (results) {
+      results = results && results.map(utils.castToSnapshot);
+      callback(results);
+    })
+    .catch(callback);
 
     mongo.collection(cName).find(query, projection, function(err, cursor) {
       if (err) return callback(err);
@@ -374,14 +382,14 @@ liveDBRethinkDB.prototype.queryProjected = function(livedb, cName, fields, input
       self._query(self.mongoPoll, cName, query, fields, callback);
     }, 300);
   } else {
-    this._query(this.mongo, cName, query, fields, callback);
+    this._query(this.r, cName, query, fields, callback);
   }
 };
 
 liveDBRethinkDB.prototype.queryDocProjected = function(livedb, index, cName, docName, fields, inputQuery, callback) {
   var err;
   if (err = this._check(cName)) return callback(err);
-  var query = normalizeQuery(inputQuery);
+  var query = utils.normalizeQuery(inputQuery);
   if (err = this.checkQuery(query)) return callback(err);
 
   // Run the query against a particular mongo document by adding an _id filter
