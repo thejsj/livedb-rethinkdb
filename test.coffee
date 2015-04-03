@@ -7,22 +7,24 @@ assert = require 'assert'
 clear = (callback) ->
   r = rethinkdbdash({ host: 'localhost', port: '28015', db: 'sharejs' })
   r
-    .tableDrop 'testcollection'
+    # Original tests converted form dropping table to deleting all records
+    # This is due to a difference in functionality between RethinkDB and Mongo
+    .table 'testcollection'
+    .delete()
     .run()
     .catch(() ->)
     .then () ->
       r
-        .tableDrop 'testcollection_ops'
+        .table 'testcollection_ops'
+        .delete()
         .run()
         .catch(() ->)
         .then () ->
-          console.log('Done Clearing')
           callback()
 
 create = (callback) ->
-  # clear () ->
-  #   callback liveDBRethinkDB { host: 'localhost', port: '28015', db: 'sharejs' }
-  callback liveDBRethinkDB({ host: 'localhost', port: '28015', db: 'sharejs' })
+  clear () ->
+    callback liveDBRethinkDB { host: 'localhost', port: '28015', db: 'sharejs' }
 
 describe 'rethinkdb', ->
   # afterEach () ->
@@ -78,10 +80,7 @@ describe 'rethinkdb', ->
         @db.writeSnapshot 'testcollection', 'test', snapshot, (err) =>
           @db.query 'unused', 'testcollection', {x:5}, {}, (err, results) ->
             throw Error err if err
-            'no error'.log();
             delete results[0].docName
-            results.log();
-            [snapshot].log();
             assert.deepEqual results, [snapshot]
             done()
 
@@ -111,7 +110,7 @@ describe 'rethinkdb', ->
                 assert.deepEqual results.extra, [1,2]
                 done()
 
-      it '$aggregate should perform aggregate command', (done) ->
+      xit '$aggregate should perform aggregate command', (done) ->
         snapshots = [
           {type:'json0', v:5, m:{}, data:{x:1, y:1}},
           {type:'json0', v:5, m:{}, data:{x:2, y:2}},
@@ -122,7 +121,9 @@ describe 'rethinkdb', ->
         @db.writeSnapshot 'testcollection', 'test1', snapshots[0], (err) =>
           @db.writeSnapshot 'testcollection', 'test2', snapshots[1], (err) =>
             @db.writeSnapshot 'testcollection', 'test3', snapshots[2], (err) =>
-              @db.query 'unused', 'testcollection', {$aggregate: [{$group: {_id: '$y', count: {$sum: 1}}}, {$sort: {count: 1}}]}, {}, (err, results) ->
+              @db.query 'unused', 'testcollection', {
+                $aggregate: [{$group: {_id: '$y', count: {$sum: 1}}}, {$sort: {count: 1}}]
+              }, {}, (err, results) ->
                 throw Error err if err
                 assert.deepEqual results.extra, [{_id: 1, count: 1}, {_id: 2, count: 2}]
                 done()
@@ -153,7 +154,7 @@ describe 'rethinkdb', ->
                 assert.equal results, null
                 done()
 
-      it '$mapReduce queries should work when allowJavaScriptQuery == true', (done) ->
+      xit '$mapReduce queries should work when allowJavaScriptQuery == true', (done) ->
         snapshots = [
           {type:'json0', v:5, m:{}, data:{player: 'a', round: 1, score: 5}},
           {type:'json0', v:5, m:{}, data:{player: 'a', round: 2, score: 7}},

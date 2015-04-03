@@ -275,7 +275,12 @@ liveDBRethinkDB.prototype.getOps = function(cName, docName, start, end, callback
 
 // Internal method to actually run the query.
 liveDBRethinkDB.prototype._query = function(r, cName, query, fields, callback) {
-  console.log('query', query);
+  // Conver the mongo query into a ReQL query
+  var reqlQuery = mongoToReQL(
+    r.table(cName),
+    query
+  );
+
   // For count queries, don't run the find() at all. We also ignore the projection, since its not
   // relevant.
   if (query.$count) {
@@ -289,19 +294,20 @@ liveDBRethinkDB.prototype._query = function(r, cName, query, fields, callback) {
       })
       .catch(callback);
   } else if (query.$distinct) {
-    delete query.$distinct;
-    // r.table(cName)
-
-    mongo.collection(cName).distinct(query.$field, query.$query || {}, function(err, result) {
-      if (err) return callback(err);
-      callback(err, {results:[], extra:result});
-    });
-
+    reqlQuery.run().then(function (results) {
+      callback(null, { results:[], extra: results });
+    })
+    .catch(callback);
   } else if (query.$aggregate) {
-    mongo.collection(cName).aggregate(query.$aggregate, function(err, result) {
-      if (err) return callback(err);
-      callback(err, {results:[], extra:result});
-    });
+    reqlQuery.run().then(function (results) {
+      callback(null, { results:[], extra: results });
+    })
+    .catch(callback);
+
+    // mongo.collection(cName).aggregate(query.$aggregate, function(err, result) {
+    //   if (err) return callback(err);
+    //   callback(err, {results:[], extra:result});
+    // });
 
   } else if (query.$mapReduce) {
     delete query.$mapReduce;
@@ -319,42 +325,14 @@ liveDBRethinkDB.prototype._query = function(r, cName, query, fields, callback) {
 
   } else {
     var cursorMethods = utils.extractCursorMethods(query);
-
     // Weirdly, if the requested projection is empty, we send everything.
     var projection = fields ? utils.projectionFromFields(fields) : false;
-
-    var reqlQuery = mongoToReQL(
-      r.table(cName),
-      query.$query
-    );
-
-    'reqlQuery'.log();
-    reqlQuery.toString().log();
-
-    // if (projection) reqlQuery reqlQuery.pluck(projection);
-
+    if (projection) reqlQuery = reqlQuery.pluck(projection);
     reqlQuery.run().then(function (results) {
       results = results && results.map(utils.castToSnapshot);
-      results.log();
       callback(null, results);
     })
     .catch(callback);
-
-    // mongo.collection(cName).find(query, projection, function(err, cursor) {
-    //   if (err) return callback(err);
-    //
-    //   for (var i = 0; i < cursorMethods.length; i++) {
-    //     var item = cursorMethods[i];
-    //     var method = item[0];
-    //     var arg = item[1];
-    //     cursor[method](arg);
-    //   }
-    //
-    //   cursor.toArray(function(err, results) {
-    //     results = results && results.map(utils.castToSnapshot);
-    //     callback(err, results);
-    //   });
-    // });
   }
 
 };
@@ -421,12 +399,22 @@ liveDBRethinkDB.prototype.queryDocProjected = function(livedb, index, cName, doc
       self.mongoPoll.collection(cName).findOne(query, projection, cb);
     }, 300);
   } else {
-    this.mongo.collection(cName).findOne(query, projection, cb);
+    this._query(this.r, cName, query, fields, function (err, result) {
+      // Convert emtpy Arrays in to `null`
+      if (Array.isArray(result)) {
+        if (result.length > 0) result = result[0];
+        if (result.length === 0) result = null;
+      }
+      callback(err, result);
+    });
   }
 };
 
 liveDBRethinkDB.prototype.queryDoc = function(livedb, index, cName, docName, inputQuery, callback) {
-  this.queryDocProjected(livedb, index, cName, docName, null, inputQuery, callback);
+  this.queryDocProjected(livedb, index, cName, docName, null, inputQuery, function (err, result) {
+    if (Array.isArray(result) && result.length > 0) result = result[0];
+    return callback(err, result);
+  });
 };
 
 // Test whether an operation will make the document its applied to match the
