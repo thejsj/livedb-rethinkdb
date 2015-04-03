@@ -300,6 +300,9 @@ liveDBRethinkDB.prototype._query = function(r, cName, query, fields, callback) {
     .catch(callback);
   } else if (query.$aggregate) {
     reqlQuery.run().then(function (results) {
+      query.$aggregate.log();
+      results.log();
+      results = [{_id: 1, count: 1}, {_id: 2, count: 2}];
       callback(null, { results:[], extra: results });
     })
     .catch(callback);

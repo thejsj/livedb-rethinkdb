@@ -110,7 +110,7 @@ describe 'rethinkdb', ->
                 assert.deepEqual results.extra, [1,2]
                 done()
 
-      xit '$aggregate should perform aggregate command', (done) ->
+      it '$aggregate should perform aggregate command', (done) ->
         snapshots = [
           {type:'json0', v:5, m:{}, data:{x:1, y:1}},
           {type:'json0', v:5, m:{}, data:{x:2, y:2}},
