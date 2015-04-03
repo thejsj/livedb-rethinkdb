@@ -16,6 +16,7 @@
   },
   "devDependencies": {
     "async": "^0.9.0",
-    "coffee-script": "^1.9.1"
+    "coffee-script": "^1.9.1",
+    "protolog": "0.0.1"
   }
 }

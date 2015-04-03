@@ -78,7 +78,10 @@ describe 'rethinkdb', ->
         @db.writeSnapshot 'testcollection', 'test', snapshot, (err) =>
           @db.query 'unused', 'testcollection', {x:5}, {}, (err, results) ->
             throw Error err if err
+            'no error'.log();
             delete results[0].docName
+            results.log();
+            [snapshot].log();
             assert.deepEqual results, [snapshot]
             done()
 

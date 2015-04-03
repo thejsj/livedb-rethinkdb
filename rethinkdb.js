@@ -3,7 +3,9 @@ var q = require('q'); // Can be easily removed
 var assert = require('assert');
 var async = require('async');
 var utils = require('./lib/utils');
-var convertToReQLQuery = require('./lib/convert-to-reql-query');
+var mongoToReQL = require('./lib/mongo-to-reql');
+
+require('protolog')();
 
 /* There are two ways to instantiate a livedb-rethinkdb wrapper.
  *
@@ -90,7 +92,7 @@ liveDBRethinkDB.prototype.getSnapshotProjected = function(cName, docName, fields
   // This code depends on the document being stored in the efficient way (which is to say, we've
   // promoted all fields in mongo). This will only work properly for json documents - which happen
   // to be the only types that we really want projections for.
-  var projection = projectionFromFields(fields);
+  var projection = utils.projectionFromFields(fields);
   this.r.table(cName).get(docName)
     .pluck(projection)
     .run()
@@ -319,36 +321,40 @@ liveDBRethinkDB.prototype._query = function(r, cName, query, fields, callback) {
     var cursorMethods = utils.extractCursorMethods(query);
 
     // Weirdly, if the requested projection is empty, we send everything.
-    var projection = fields ? projectionFromFields(fields) : {};
+    var projection = fields ? utils.projectionFromFields(fields) : false;
 
-    var query = convertToReQLQuery(
+    var reqlQuery = mongoToReQL(
       r.table(cName),
-      query
+      query.$query
     );
 
-    if (projection) query = query.pluck(projection);
+    'reqlQuery'.log();
+    reqlQuery.toString().log();
 
-    query.run().then(function (results) {
+    // if (projection) reqlQuery reqlQuery.pluck(projection);
+
+    reqlQuery.run().then(function (results) {
       results = results && results.map(utils.castToSnapshot);
-      callback(results);
+      results.log();
+      callback(null, results);
     })
     .catch(callback);
 
-    mongo.collection(cName).find(query, projection, function(err, cursor) {
-      if (err) return callback(err);
-
-      for (var i = 0; i < cursorMethods.length; i++) {
-        var item = cursorMethods[i];
-        var method = item[0];
-        var arg = item[1];
-        cursor[method](arg);
-      }
-
-      cursor.toArray(function(err, results) {
-        results = results && results.map(utils.castToSnapshot);
-        callback(err, results);
-      });
-    });
+    // mongo.collection(cName).find(query, projection, function(err, cursor) {
+    //   if (err) return callback(err);
+    //
+    //   for (var i = 0; i < cursorMethods.length; i++) {
+    //     var item = cursorMethods[i];
+    //     var method = item[0];
+    //     var arg = item[1];
+    //     cursor[method](arg);
+    //   }
+    //
+    //   cursor.toArray(function(err, results) {
+    //     results = results && results.map(utils.castToSnapshot);
+    //     callback(err, results);
+    //   });
+    // });
   }
 
 };
@@ -401,7 +407,7 @@ liveDBRethinkDB.prototype.queryDocProjected = function(livedb, index, cName, doc
     query.$query._id = docName;
   }
 
-  var projection = fields ? projectionFromFields(fields) : {};
+  var projection = fields ? utils.projectionFromFields(fields) : false;
 
   function cb(err, doc) {
     callback(err, utils.castToSnapshot(doc));
