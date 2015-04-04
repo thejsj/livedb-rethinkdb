@@ -275,6 +275,8 @@ liveDBRethinkDB.prototype.getOps = function(cName, docName, start, end, callback
 
 // Internal method to actually run the query.
 liveDBRethinkDB.prototype._query = function(r, cName, query, fields, callback) {
+
+
   // Conver the mongo query into a ReQL query
   var reqlQuery = mongoToReQL(
     r.table(cName),
@@ -283,35 +285,14 @@ liveDBRethinkDB.prototype._query = function(r, cName, query, fields, callback) {
 
   // For count queries, don't run the find() at all. We also ignore the projection, since its not
   // relevant.
-  if (query.$count) {
-    delete query.$count;
-    r.table(cName)
-      .filter(query.$query || true) // This won't work, since it's intended for Mongo
-      .count()
-      .run()
-      .then(function (count) {
-        callback(null, {results:[], extra: count});
-      })
-      .catch(callback);
-  } else if (query.$distinct) {
+  if (query.$distinct || query.$aggregate || query.$count) {
+    /**
+     * $distinct and $aggregate work in the same way
+     */
     reqlQuery.run().then(function (results) {
       callback(null, { results:[], extra: results });
     })
     .catch(callback);
-  } else if (query.$aggregate) {
-    reqlQuery.run().then(function (results) {
-      query.$aggregate.log();
-      results.log();
-      results = [{_id: 1, count: 1}, {_id: 2, count: 2}];
-      callback(null, { results:[], extra: results });
-    })
-    .catch(callback);
-
-    // mongo.collection(cName).aggregate(query.$aggregate, function(err, result) {
-    //   if (err) return callback(err);
-    //   callback(err, {results:[], extra:result});
-    // });
-
   } else if (query.$mapReduce) {
     delete query.$mapReduce;
 
