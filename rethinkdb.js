@@ -287,7 +287,7 @@ liveDBRethinkDB.prototype._query = function(r, cName, query, fields, callback) {
   // relevant.
   if (query.$distinct || query.$aggregate || query.$count) {
     /**
-     * $distinct and $aggregate work in the same way
+     * $distinct, $aggregate, and $count work in the same way
      */
     reqlQuery.run().then(function (results) {
       callback(null, { results:[], extra: results });
@@ -308,7 +308,6 @@ liveDBRethinkDB.prototype._query = function(r, cName, query, fields, callback) {
     });
 
   } else {
-    var cursorMethods = utils.extractCursorMethods(query);
     // Weirdly, if the requested projection is empty, we send everything.
     var projection = fields ? utils.projectionFromFields(fields) : false;
     if (projection) reqlQuery = reqlQuery.pluck(projection);
