@@ -79,12 +79,17 @@ liveDBRethinkDB.prototype._check = function(cName) {
 
 liveDBRethinkDB.prototype.getSnapshot = function(cName, docName, callback) {
   var err; if (err = this._check(cName)) return callback(err);
-  this.r.table(cName).get(docName)
-    .run()
-    .then(function (doc) {
-      callback(null, utils.castToSnapshot(doc));
-    })
-    .catch(callback);
+
+  this._collection(cName)
+    .then(function (table) {
+      table
+        .get(docName)
+        .run()
+        .then(function (doc) {
+          callback(null, utils.castToSnapshot(doc));
+        })
+        .catch(callback);
+    });
 };
 
 // Variant on getSnapshot (above) which projects the returned document
@@ -95,40 +100,50 @@ liveDBRethinkDB.prototype.getSnapshotProjected = function(cName, docName, fields
   // promoted all fields in mongo). This will only work properly for json documents - which happen
   // to be the only types that we really want projections for.
   var projection = utils.projectionFromFields(fields);
-  this.r.table(cName).get(docName)
-    .pluck(projection)
-    .run()
-    .then(function (doc) {
-      callback(null, utils.castToSnapshot(doc));
-    })
-    .catch(callback);
+  this._collection(cName)
+    .then(function (table){
+      // Return table
+      table
+        .get(docName)
+        .pluck(projection)
+        .run()
+        .then(function (doc) {
+          callback(null, utils.castToSnapshot(doc));
+        })
+        .catch(callback);
+    });
 };
 
 liveDBRethinkDB.prototype.bulkGetSnapshot = function(requests, callback) {
   if (this.closed) return callback('db already closed');
 
-  var r = this.r;
   var results = {};
 
-  var getSnapshots = function(cName, callback) {
+  var getSnapshots = function(cName, cb) {
     if (!utils.isValidCName(cName)) return 'Invalid collection name';
 
+    var r = this.r; // In order to pass it along to our queries
     var cResult = results[cName] = {};
 
     var docNames = requests[cName];
-    r
-      .table(cName)
-      .filter(function (row) { return r.expr(docNames).contains(row('id')); })
-      .run()
-      .then(function (docs) {
-        data = data && data.map(utils.castToSnapshot);
-        for (var i = 0; i < data.length; i++) {
-          cResult[data[i].docName] = data[i];
-        }
-        callback();
-      })
-      .catch(callback);
-  };
+    this._collection(cName)
+      .then(function (collection) {
+        collection
+          .filter(function (row) { return r.expr(docNames).contains(row('id')); })
+          .run()
+          .then(function (data) {
+            data = data && data.map(utils.castToSnapshot);
+            for (var i = 0; i < data.length; i++) {
+              cResult[data[i].docName] = data[i];
+            }
+            cb();
+          })
+          .catch(cb);
+      }.bind(this))
+      .catch(function (err) {
+        console.log('Error Getting Snapshot:', err);
+      });
+  }.bind(this);
 
   async.each(Object.keys(requests), getSnapshots, function(err) {
     callback(err, err ? null : results);
@@ -138,14 +153,16 @@ liveDBRethinkDB.prototype.bulkGetSnapshot = function(requests, callback) {
 liveDBRethinkDB.prototype.writeSnapshot = function(cName, docName, data, callback) {
   var err; if (err = this._check(cName)) return callback(err);
   var doc = utils.castToDoc(docName, data);
-  this.r
-    .table(cName)
-    .insert(doc, {conflict: "update"})
-    .run()
-    .then(function (data) {
-      callback(null, null);
-    })
-    .catch(callback);
+  this._collection(cName)
+    .then(function (collection) {
+      collection
+        .insert(doc, {conflict: "update"})
+        .run()
+        .then(function (data) {
+          callback(null, null);
+        })
+        .catch(callback);
+    });
 };
 
 
@@ -155,6 +172,21 @@ liveDBRethinkDB.prototype.writeSnapshot = function(cName, docName, data, callbac
 liveDBRethinkDB.prototype.getOplogCollectionName = function(cName) {
   // Using an underscore to make it easier to see whats going in on the shell
   return cName + '_ops';
+};
+
+liveDBRethinkDB.prototype._collection = function(cName) {
+  this._collections = this._collections || {};
+  return q()
+    .then(function () {
+      if (!this._collections[cName]) {
+        this._collections[cName] = true;
+        return this.r.tableCreate(cName).run().catch(function () {});
+      }
+      return true;
+    }.bind(this))
+    .then(function () {
+      return this.r.table(cName);
+    }.bind(this));
 };
 
 // Get and return the op table from rethinkdb, ensuring it has the op index.
@@ -209,7 +241,7 @@ liveDBRethinkDB.prototype.writeOp = function(cName, docName, opData, callback) {
         .insert(data, {'conflict': 'update'})
         .run()
         .then(function (data) {
-          calback(null, data);
+          callback(null, data);
         })
         .catch(callback);
     });
@@ -226,19 +258,21 @@ liveDBRethinkDB.prototype.getVersion = function(cName, docName, callback) {
         .run()
         .then(function (data) {
           if (data === null) {
-            self.r
-              .table(cName)
-              .get(docName)
-              .pluck('_v') // When is it _v and when is it v?
-              .run()
-              .then(function(doc) {
-                callback(null, doc ? doc._v : 0);
-              })
-              .catch(callback);
+            this._collection(cName)
+              .then(function (collection) {
+                  collection
+                    .get(docName)
+                    .pluck('_v') // When is it _v and when is it v?
+                    .run()
+                    .then(function(doc) {
+                      callback(null, doc ? doc._v : 0);
+                    })
+                    .catch(callback);
+              });
           } else {
             callback(err, data.v + 1);
           }
-        })
+        }.bind(this))
         .catch(callback);
     });
 };
@@ -256,7 +290,7 @@ liveDBRethinkDB.prototype.getOps = function(cName, docName, start, end, callback
     .then(function (collection) {
       collection
         .orderBy({'index': 'v'}) // {sort:{v:1}}
-        .filter({ name:docName }) // find({name: docName})
+        .filter({ name: docName }) // find({name: docName})
         .filter(query) // find({v: {$gte: start} || {$gte: start, $lt: end}})
         .run()
         .then(function (data) {
@@ -267,7 +301,9 @@ liveDBRethinkDB.prototype.getOps = function(cName, docName, start, end, callback
           }
           callback(null, data);
         })
-        .catch(callback);
+        .catch(function (err) {
+          throw err;
+        });
     });
 };
 
@@ -276,7 +312,6 @@ liveDBRethinkDB.prototype.getOps = function(cName, docName, start, end, callback
 
 // Internal method to actually run the query.
 liveDBRethinkDB.prototype._query = function(r, cName, query, fields, callback) {
-
 
   // Conver the mongo query into a ReQL query
   var reqlQuery = mongoToReQL(
@@ -299,13 +334,12 @@ liveDBRethinkDB.prototype._query = function(r, cName, query, fields, callback) {
      * We temporarily create a global `emit` function in order for our
      * map function to pass on its values
      */
-    global.emit = utils.mongoMapReduceEmit;
     reqlQuery.run().then(function (results) {
+      global.emit = utils.mongoMapReduceEmit;
       var mappedResults = results.map(function (value) {
         return query.$map.call(value);
       });
-      var groups = _.groupBy(mappedResults, '_id');
-      groups = _.mapValues(groups, function (value) {
+      var groups = _.mapValues(_.groupBy(mappedResults, '_id'), function (value) {
         return _.pluck(value, 'value');
       });
       var reduction = _.pairs(groups).map(function (obj) {
