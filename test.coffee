@@ -154,7 +154,7 @@ describe 'rethinkdb', ->
                 assert.equal results, null
                 done()
 
-      xit '$mapReduce queries should work when allowJavaScriptQuery == true', (done) ->
+      it '$mapReduce queries should work when allowJavaScriptQuery == true', (done) ->
         snapshots = [
           {type:'json0', v:5, m:{}, data:{player: 'a', round: 1, score: 5}},
           {type:'json0', v:5, m:{}, data:{player: 'a', round: 2, score: 7}},

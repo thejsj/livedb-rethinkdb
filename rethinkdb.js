@@ -1,7 +1,9 @@
 var rethinkdbdash = require('rethinkdbdash');
+var _ = require('lodash');
 var q = require('q'); // Can be easily removed
 var assert = require('assert');
 var async = require('async');
+
 var utils = require('./lib/utils');
 var mongoToReQL = require('./lib/mongo-to-reql');
 
@@ -120,7 +122,6 @@ liveDBRethinkDB.prototype.bulkGetSnapshot = function(requests, callback) {
       .run()
       .then(function (docs) {
         data = data && data.map(utils.castToSnapshot);
-
         for (var i = 0; i < data.length; i++) {
           cResult[data[i].docName] = data[i];
         }
@@ -287,28 +288,42 @@ liveDBRethinkDB.prototype._query = function(r, cName, query, fields, callback) {
   // relevant.
   if (query.$distinct || query.$aggregate || query.$count) {
     /**
-     * $distinct, $aggregate, and $count work in the same way
+     * $distinct, $aggregate, and $count all work in the same way
      */
     reqlQuery.run().then(function (results) {
       callback(null, { results:[], extra: results });
     })
     .catch(callback);
   } else if (query.$mapReduce) {
-    delete query.$mapReduce;
-
-    var opt = {
-      query: query.$query || {},
-      out: {inline: 1},
-      scope: query.$scope || {}
-    };
-
-    mongo.collection(cName).mapReduce(query.$map, query.$reduce, opt, function (err, mapReduce) {
-      if (err) return callback(err);
-      callback(err, {results: [], extra: mapReduce});
-    });
-
+    /**
+     * We temporarily create a global `emit` function in order for our
+     * map function to pass on its values
+     */
+    global.emit = utils.mongoMapReduceEmit;
+    reqlQuery.run().then(function (results) {
+      var mappedResults = results.map(function (value) {
+        return query.$map.call(value);
+      });
+      var groups = _.groupBy(mappedResults, '_id');
+      groups = _.mapValues(groups, function (value) {
+        return _.pluck(value, 'value');
+      });
+      var reduction = _.pairs(groups).map(function (obj) {
+         return {
+           _id: obj[0],
+           value: query.$reduce.call(null, obj[0], obj[1])
+         };
+      });
+      delete global.emit;
+      callback(null, { results:[], extra: reduction });
+    })
+    .catch(callback);
   } else {
-    // Weirdly, if the requested projection is empty, we send everything.
+    /**
+     * Since no special operation has been created, we'll just run the query
+     * and pass the results on to our callback
+     * This would be the equivalent of running a `find` operation in Mongo
+     */
     var projection = fields ? utils.projectionFromFields(fields) : false;
     if (projection) reqlQuery = reqlQuery.pluck(projection);
     reqlQuery.run().then(function (results) {
@@ -419,7 +434,6 @@ liveDBRethinkDB.prototype.queryNeedsPollMode = function(index, query) {
     query.hasOwnProperty('$skip') ||
     query.hasOwnProperty('$count');
 };
-
 
 // Utility methods
 
