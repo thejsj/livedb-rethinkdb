@@ -156,7 +156,7 @@ liveDBRethinkDB.prototype.writeSnapshot = function(cName, docName, data, callbac
   this._collection(cName)
     .then(function (collection) {
       collection
-        .insert(doc, {conflict: "update"})
+        .insert(doc, { 'conflict': 'update' })
         .run()
         .then(function (data) {
           callback(null, null);
