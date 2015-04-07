@@ -1,38 +1,40 @@
-# livedb-mongo
+# livedb-rethinkdb
 
 RethinkDB database adapter for [livedb](https://github.com/share/livedb).
 
-Snapshots are stored where you'd expect (the named table with
-\_id=docName). Operations are stored in `COLLECTION_ops`. If you have a
-users collection, the operations are stored in `users_ops`. If you have a
+The module’s api is identical to [livedb-mongo](https://github.com/share/livedb-mongo) and works in the same way.
+
+snapshots are stored where you'd expect (the named table with
+\_id=docname). operations are stored in `collection_ops`. if you have a
+users collection, the operations are stored in `users_ops`. if you have a
 document called `fred`, operations will be stored in documents called `fred
 v0`, `fred v1`, `fred v2` and so on.
 
-JSON document snapshots in livedb-mongo are unwrapped so you can use mongo
-queries directly against JSON documents. (They just have some extra fields in
-    the form of `_v` and `_type`). You should always use livedb to edit
-documents - don't just edit them directly in mongo. You'll get weird behaviour
+json document snapshots in livedb-rethinkdb are unwrapped so you can use reql
+queries directly against json documents. (they just have some extra fields in
+    the form of `_v` and `_type`). you should always use livedb to edit
+documents - don't just edit them directly in rethinkdb. you'll get weird behaviour
 if you do.
 
 ## Usage
 
-LiveDB-rethhinkdb wraps [rethinkdbdash](). It
+livedb-rethhinkdb wraps [rethinkdbdash](). it
 passes all the arguments straight to rethinkdbdash's constructor. `npm install
 livedb-rethinkdb` then create your database wrapper using the same arguments you
 would pass to rethinkdbdash:
 
 ```javascript
 var livedbrethinkdb = require('livedb-rethinkdb');
-var mongo = livedbrethinkdb({
+var r = livedbrethinkdb({
   host: 'localhost',
   port: 28015,
   db: 'sharejs'
 });
 
-var livedb = require('livedb').client(livedbrethinkdb); // Or whatever. See livedb's docs.
+var livedb = require('livedb').client(livedbrethinkdb); // or whatever. see livedb's docs.
 ```
 
-If you prefer, you can instead create a rethinkdbdash instance yourself and pass it to livedb-rethinkdb:
+if you prefer, you can instead create a rethinkdbdash instance yourself and pass it to livedb-rethinkdb:
 ```javascript
 var rethinkdbdash = require('rethinkdbdash');
 var r = rethinkdbdash({
@@ -44,7 +46,12 @@ var r = rethinkdbdash({
 var livedbrethinkdb = require('livedb-rethinkdb');
 var rethinkdb = livedbrethinkdb(r);
 ```
+## Test
 
+Run the tests using: 
+```
+npm test
+```
 ## MIT License
 Copyright (c) 2015 by RethinkDB.
 
