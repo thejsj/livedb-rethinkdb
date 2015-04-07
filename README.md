@@ -31,13 +31,14 @@ would pass to rethinkdbdash:
 
 ```javascript
 var livedbrethinkdb = require('livedb-rethinkdb');
+// Pass your RethinkDB parameters
 var r = livedbrethinkdb({
   host: 'localhost',
   port: 28015,
   db: 'sharejs'
 });
 
-var livedb = require('livedb').client(livedbrethinkdb); // or whatever. see livedb's docs.
+var livedb = require('livedb').client(livedbrethinkdb);
 ```
 
 if you prefer, you can instead create a rethinkdbdash instance yourself and pass it to livedb-rethinkdb:
