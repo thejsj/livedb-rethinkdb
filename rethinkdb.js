@@ -272,9 +272,9 @@ liveDBRethinkDB.prototype.getVersion = function(cName, docName, callback) {
           } else {
             callback(err, data.v + 1);
           }
-        }.bind(this))
-        .catch(callback);
-    });
+        }.bind(this));
+    }.bind(this))
+    .catch(callback);
 };
 
 liveDBRethinkDB.prototype.getOps = function(cName, docName, start, end, callback) {
