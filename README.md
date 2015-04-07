@@ -16,6 +16,12 @@ queries directly against json documents. (they just have some extra fields in
 documents - don't just edit them directly in rethinkdb. you'll get weird behaviour
 if you do.
 
+## Install
+
+```
+npm install livedb-rethinkdb
+```
+
 ## Usage
 
 livedb-rethhinkdb wraps [rethinkdbdash](). it
@@ -52,6 +58,10 @@ Run the tests using:
 ```
 npm test
 ```
+## Credit 
+
+This project is a fork of [livedb-mongo](https://github.com/share/livedb-mongo).
+
 ## MIT License
 Copyright (c) 2015 by RethinkDB.
 
