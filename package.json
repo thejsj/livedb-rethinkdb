@@ -9,6 +9,7 @@
   "author": "thejsj",
   "license": "MIT",
   "dependencies": {
+    "async": "^0.9.0",
     "livedb": "^0.5.9",
     "lodash": "^3.6.0",
     "q": "^1.2.0",
