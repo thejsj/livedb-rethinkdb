@@ -229,7 +229,6 @@ liveDBRethinkDB.prototype.writeOp = function(cName, docName, opData, callback) {
   assert(opData.v != null);
 
   var err; if (err = this._check(cName)) return callback(err);
-  var self = this;
 
   var data = utils.shallowClone(opData);
   data.id = docName + ' v' + opData.v,
@@ -250,7 +249,6 @@ liveDBRethinkDB.prototype.writeOp = function(cName, docName, opData, callback) {
 liveDBRethinkDB.prototype.getVersion = function(cName, docName, callback) {
   var err; if (err = this._check(cName)) return callback(err);
 
-  var self = this;
   this._opCollection(cName)
     .then(function (collection) {
       collection
@@ -390,13 +388,12 @@ liveDBRethinkDB.prototype.queryProjected = function(livedb, cName, fields, input
 
   // Use this.mongoPoll if its a polling query.
   if (opts.mode === 'poll' && this.mongoPoll) {
-    var self = this;
     // This timeout is a dodgy hack to work around race conditions replicating the
     // data out to the polling target replica.
     setTimeout(function() {
-      if (self.closed) return callback('db already closed');
-      self._query(self.mongoPoll, cName, query, fields, callback);
-    }, 300);
+      if (this.closed) return callback('DB already closed');
+      this._query(this.mongoPoll, cName, query, fields, callback);
+    }.bind(this), 300);
   } else {
     this._query(this.r, cName, query, fields, callback);
   }
@@ -424,12 +421,11 @@ liveDBRethinkDB.prototype.queryDocProjected = function(livedb, index, cName, doc
   }
 
   if (this.mongoPoll) {
-    var self = this;
     // Blah vomit - same dodgy hack as in queryProjected above.
     setTimeout(function() {
-      if (self.closed) return callback('db already closed');
-      self.mongoPoll.collection(cName).findOne(query, projection, cb);
-    }, 300);
+      if (this.closed) return callback('db already closed');
+      this.mongoPoll.collection(cName).findOne(query, projection, cb);
+    }.bind(this), 300);
   } else {
     this._query(this.r, cName, query, fields, function (err, result) {
       // Convert emtpy Arrays in to `null`
