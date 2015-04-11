@@ -16,7 +16,6 @@
     "rethinkdbdash": "git+https://github.com/thejsj/rethinkdbdash.git#25782934a11c6c1c0fdfdcc8cc27773f3f2a4427"
   },
   "devDependencies": {
-    "async": "^0.9.0",
     "coffee-script": "^1.9.1",
     "protolog": "0.0.1"
   }

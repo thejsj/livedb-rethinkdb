@@ -39,7 +39,15 @@ function liveDBRethinkDB(r, options) {
   this.closed = false;
 
   if (!options) options = {};
-
+  /*!
+   * Looing at the original code, it seems that mongoPoll is secondary replica of the
+   * main database. In this implementation, it just wait 300ms to query the
+   * DB in order to make sure the replica has up-to-date data. If up-to-date data
+   * is requested in RethinkDB, the query will always go to the primary replica,
+   * making this option practically irrelevant, unless old data is requested.
+   *
+   * It's probably a good idea to implement changefeeds for polling.
+   */
   this.mongoPoll = options.mongoPoll || null;
 
   // The getVersion() and getOps() methods depend on a collectionname_ops
@@ -392,6 +400,7 @@ liveDBRethinkDB.prototype.queryProjected = function(livedb, cName, fields, input
     // data out to the polling target replica.
     setTimeout(function() {
       if (this.closed) return callback('DB already closed');
+      return callback('Polling Not Yet Implmented');
       this._query(this.mongoPoll, cName, query, fields, callback);
     }.bind(this), 300);
   } else {
@@ -424,6 +433,7 @@ liveDBRethinkDB.prototype.queryDocProjected = function(livedb, index, cName, doc
     // Blah vomit - same dodgy hack as in queryProjected above.
     setTimeout(function() {
       if (this.closed) return callback('db already closed');
+      return callback('Polling Not Yet Implmented');
       this.mongoPoll.collection(cName).findOne(query, projection, cb);
     }.bind(this), 300);
   } else {
