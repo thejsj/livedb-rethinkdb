@@ -1,11 +1,9 @@
-var rethinkdbdash = require('rethinkdbdash');
 var _ = require('lodash');
 var q = require('q'); // Can be easily removed
 var assert = require('assert');
 var async = require('async');
 
 var utils = require('./lib/utils');
-var mongoToReQL = require('./lib/mongo-to-reql');
 
 require('protolog')();
 
@@ -22,11 +20,8 @@ require('protolog')();
  * var r = require('rethinkdbdash')({ host: 'localhost', port: 28015, db: 'sharejs' });
  * var db = require('livedb-rethinkdb')(r);
  */
-exports = module.exports = function(r, options) {
-  if (r.constructor !== rethinkdbdash().constructor) {
-    r = rethinkdbdash(r);
-  }
-  return new liveDBRethinkDB(r, options);
+exports = module.exports = function(connectionOptions, options) {
+  return new liveDBRethinkDB(connectionOptions, options);
 };
 
 // Deprecated. Don't use directly.
@@ -34,8 +29,9 @@ exports.liveDBRethinkDB = liveDBRethinkDB;
 
 // r is an instance of rethinkdbdash. Create with:
 // rethinkdbdash({ host: 'localhost', port: 28015, db: 'sharejs' })
-function liveDBRethinkDB(r, options) {
-  this.r = r;
+function liveDBRethinkDB(connectionOptions, options) {
+  this.r = require('rethinkdbdash')(connectionOptions);
+  this.mongoToReQL = require('./lib/mongo-to-reql')(this.r);
   this.closed = false;
 
   if (!options) options = {};
@@ -320,7 +316,7 @@ liveDBRethinkDB.prototype.getOps = function(cName, docName, start, end, callback
 liveDBRethinkDB.prototype._query = function(r, cName, query, fields, callback) {
 
   // Conver the mongo query into a ReQL query
-  var reqlQuery = mongoToReQL(
+  var reqlQuery = this.mongoToReQL(
     r.table(cName),
     query
   );
