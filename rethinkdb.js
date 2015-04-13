@@ -5,8 +5,6 @@ var async = require('async');
 
 var utils = require('./lib/utils');
 
-require('protolog')();
-
 /* There are two ways to instantiate a livedb-rethinkdb wrapper.
  *
  * 1. The simplest way is to just invoke the module and pass in your rethinkdbdash

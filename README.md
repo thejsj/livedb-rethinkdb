@@ -41,18 +41,6 @@ var r = livedbrethinkdb({
 var livedb = require('livedb').client(livedbrethinkdb);
 ```
 
-if you prefer, you can instead create a rethinkdbdash instance yourself and pass it to livedb-rethinkdb:
-```javascript
-var rethinkdbdash = require('rethinkdbdash');
-var r = rethinkdbdash({
-  host: 'localhost',
-  port: 28015,
-  db: 'sharejs'
-});
-
-var livedbrethinkdb = require('livedb-rethinkdb');
-var rethinkdb = livedbrethinkdb(r);
-```
 ## Test
 
 Run the tests using: 
