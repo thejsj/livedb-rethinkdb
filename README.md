@@ -1,5 +1,7 @@
 # livedb-rethinkdb
 
+<a href="https://nodei.co/npm/livedb-rethinkdb/"><img src="https://nodei.co/npm/livedb-rethinkdb.png?downloads=true&downloadRank=true&stars=true"></a>
+
 RethinkDB database adapter for [livedb](https://github.com/share/livedb).
 
 The module’s api is identical to [livedb-mongo](https://github.com/share/livedb-mongo) and works in the same way.
