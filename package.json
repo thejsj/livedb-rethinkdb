@@ -18,5 +18,9 @@
   "devDependencies": {
     "coffee-script": "^1.9.1",
     "protolog": "0.0.1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/thejsj/livedb-rethinkdb"
   }
 }
